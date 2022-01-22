@@ -1,0 +1,55 @@
+name: Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: "0 0 * * 0"
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk: [dev]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: dart-lang/setup-dart@v1.0
+        with:
+          sdk: ${{ matrix.sdk }}
+      
+      - run: dart pub get
+        id: install
+
+      - run: dart format --output=none --set-exit-if-changed .
+        if: always() && steps.install.outcome == 'success'
+
+      - run: dart analyze --fatal-infos
+        if: always() && steps.install.outcome == 'success'
+
+  test:
+    needs: analyze
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        sdk: [2.14.0, dev]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: dart-lang/setup-dart@v1.0
+        with:
+          sdk: ${{ matrix.sdk }}
+
+      - run: dart pub get
+        id: install
+
+      - run: dart test --platform vm
+        if: always() && steps.install.outcome == 'success'
+
+      - run: dart test --platform chrome
+        if: always() && steps.install.outcome == 'success'
+
